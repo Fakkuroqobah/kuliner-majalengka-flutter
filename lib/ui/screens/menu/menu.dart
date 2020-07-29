@@ -18,17 +18,19 @@ class _MenuState extends State<Menu> {
   final MenuController _menuController = MenuController();
   final LoadingScrollController _loadingScrollController = LoadingScrollController();
   final ScrollController _scrollController = new ScrollController();
-  int index = 1;
+  int _index = 1;
 
-  bool onNotification(ScrollNotification notif) {
+  bool _onNotification(ScrollNotification notif) {
     if(notif is ScrollUpdateNotification) {
       if(_scrollController.position.maxScrollExtent == _scrollController.position.pixels) {
         _loadingScrollController.isLoading(true);
-        if(index < _menuController.lastPage) {
-          _menuController.all(page: index.toString()).then((_) {
+        print("last page ${_menuController.lastPage}");
+        if(_index <= _menuController.lastPage) {
+          print("page $_index");
+          _menuController.all(page: _index.toString()).then((_) {
             setState(() {});
           });
-          index++;
+          _index++;
         }else{
           _loadingScrollController.isLoading(false);
         }
@@ -45,6 +47,12 @@ class _MenuState extends State<Menu> {
   }
 
   @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final futureMenu = _menuController.menus;
 
@@ -56,74 +64,69 @@ class _MenuState extends State<Menu> {
         backgroundColor: Colors.white,
         elevation: 0.0,
       ),
-      body: Center(
-        child: NotificationListener(
-          onNotification: onNotification,
-          child: ListView(
-            shrinkWrap: true,
-            physics: AlwaysScrollableScrollPhysics(),
-            controller: _scrollController,
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: Observer(
-                  builder: (_) {
-                    switch(futureMenu.status) {
-                      case FutureStatus.pending:
-                        return Align(
-                          alignment: Alignment.center,
-                          child: CircularProgressIndicator(),
-                        );
-                        break;
+      body: NotificationListener(
+        onNotification: _onNotification,
+        child: Center(
+          child: Observer(
+            builder: (_) {
+              switch(futureMenu.status) {
+                case FutureStatus.pending:
+                  return Center(child: CircularProgressIndicator());
+                  break;
 
-                      case FutureStatus.rejected:
-                        return Center(child: Text("Failed to load data"));
-                        break;
+                case FutureStatus.rejected:
+                  return Center(child: Text("Failed to load data"));
+                  break;
 
-                      case FutureStatus.fulfilled:
-                        final List<MenuModel> menu = futureMenu.result;
-                        return Column(
-                          children: List.generate(menu.length, (index) {
-                            MenuModel data = menu[index];
-                            return buildMenu(data: data);
-                          }),
-                        );
-                        break;
+                case FutureStatus.fulfilled:
+                  final List<MenuModel> menu = futureMenu.result;
+                  return Column(
+                    children: <Widget>[
+                      Expanded(
+                        child: ListView.builder(
+                          controller: _scrollController,
+                          shrinkWrap: true,
+                          physics: AlwaysScrollableScrollPhysics(),
+                          itemCount: menu.length + 1,
+                          itemBuilder: (_, int index) {
+                            if(index == menu.length) {
+                              return buildLoading();
+                            }else{
+                              MenuModel data = menu[index];
+                              return buildMenu(data: data);
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                  break;
 
-                      default:
-                        return Container();
-                        break;
-                    }
-                  },
-                ),
-              ),
-
-              Observer(
-                builder: (_) {
-                  if(_loadingScrollController.loading) {
-                    return buildLoading();
-                  }else{
-                    return Container();
-                  }
-                }
-              )
-            ],
+                default:
+                  return Container();
+                  break;
+              }
+            },
           ),
         ),
       ),
     );
   }
 
-  Column buildLoading() {
-    return Column(
-      children: <Widget>[
-        Align(
-          alignment: Alignment.center,
-          child: CircularProgressIndicator(),
-        ),
-
-        SizedBox(height: 20.0)
-      ],
+  Observer buildLoading() {
+    return Observer(
+      builder: (_) {
+        if(_loadingScrollController.loading) {
+          return Column(
+            children: <Widget>[
+              Center(child: CircularProgressIndicator()),
+              SizedBox(height: 20.0)
+            ],
+          );
+        }else{
+          return Container();
+        }
+      }
     );
   }
 
@@ -138,7 +141,7 @@ class _MenuState extends State<Menu> {
 
     return Container(
       height: 80.0,
-      margin: EdgeInsets.only(bottom: 20.0),
+      margin: EdgeInsets.only(left: 24.0, right: 24.0, bottom: 20.0),
       child: InkWell(
         onTap: (){},
         child: Row(

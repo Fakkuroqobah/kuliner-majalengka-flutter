@@ -6,7 +6,7 @@ class LoadingScrollController = _LoadingScrollController with _$LoadingScrollCon
 
 abstract class _LoadingScrollController with Store {
   @observable
-  bool _loading = false;
+  bool _loading = true;
   bool get loading => _loading;
 
   @action
